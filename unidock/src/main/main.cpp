@@ -176,6 +176,7 @@ bug reporting, license agreements, and more information.      \n";
         double buffer_size = 4;
         int max_step = 0;
         int max_gpu_memory = 0;
+        int max_batch_size = 0;
         int refine_step = 5;
 
         // autodock4.2 weights
@@ -361,7 +362,8 @@ bug reporting, license agreements, and more information.      \n";
                                                 "number of steps in refinement, default=5")(
             "max_gpu_memory", value<int>(&max_gpu_memory)->default_value(0),
             "maximum gpu memory to use (default=0, use all available GPU memory to optain maximum "
-            "batch size)")(
+            "batch size)")("max_batch_size", value<int>(&max_batch_size)->default_value(0),
+            "maximum batch size to use (default=0, does not specify batch size)")(
             "search_mode", value<std::string>(&search_mode),
             "search mode of vina (fast, balance, detail), using recommended settings of "
             "exhaustiveness and search steps; the higher the computational complexity, the higher "
@@ -769,6 +771,7 @@ bug reporting, license agreements, and more information.      \n";
                             = next_atom_numbers * next_atom_numbers;  // Memory ~ atom numbers^2
                         all_atom2_numbers += next_atom2_numbers;
                         batch_size++;
+                        if (max_batch_size > 0 && batch_size >= max_batch_size) break;
                     }
                     DEBUG_PRINTF("batch size=%d, all_atom2_numbers=%d\n", batch_size,
                                  all_atom2_numbers);

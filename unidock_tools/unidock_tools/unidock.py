@@ -68,7 +68,7 @@ class UniDock():
         with open(ligand_index, 'r') as f:
             ligands = f.readlines()
             ligands = [ligand.strip() for ligand in ligands]
-        
+
         for ligand in ligands:
             basename =  os.path.basename(ligand)
             format = basename.split('.')[-1]
@@ -82,14 +82,14 @@ class UniDock():
             self.ligands = prepare_ligands(self.SDF, output_dir=self.ligands_prepared_dir) + self.PDBQT
         else:
             self.ligands = self.PDBQT
-        
+
         ligand_prepared_index_file = "%s/ligands.dat"%self.output_dir
         with open(ligand_prepared_index_file, 'w') as f:
             for ligand in self.ligands:
                 f.write("%s\n"%ligand)
 
         self.command_ligand = '--ligand_index %s'%(ligand_prepared_index_file)
-    
+
     def set_gpu_batch(self, ligands:list):
         """
         Set the ligands GPU batch for the docking.
@@ -112,7 +112,7 @@ class UniDock():
             self.ligands = prepare_ligands(self.SDF, output_dir=self.ligands_prepared_dir) + self.PDBQT
         else:
             self.ligands = self.PDBQT
-        
+
         self.command_ligand = '--gpu_batch %s'%(" ".join(self.ligands))
 
     def set_ligand(self, ligand:str):
@@ -131,9 +131,9 @@ class UniDock():
             self.ligands = prepare_ligands([ligand], output_dir=self.ligands_prepared_dir)
         elif format == "pdbqt":
             self.ligands = [ligand]
-        
+
         self.command_ligand = '--ligand %s'%self.ligands[0]
-            
+
     def set_batch(self, ligands:list):
         """
         Set the ligands batch for the docking.
@@ -163,10 +163,10 @@ class UniDock():
         """
         Set the rescoring function for the docking.
 
-        :param rescoring: Rescoring function. Options: 'gnina'. 
+        :param rescoring: Rescoring function. Options: 'gnina'.
         """
         self.rescoring=rescoring
-    
+
     def writeBpf(self, references):
         for ligand1, ligand2 in zip(references, self.ligands):
             bpf = Bpf(ligand1, ligand2)
@@ -179,26 +179,26 @@ class UniDock():
         self._call_unidock()
         if self.rescoring:
             self._call_gnina()
-    
+
     def _call_unidock(self):
         command = " ".join(self.config)
         print("command:", command)
-        resp = subprocess.run(" ".join(self.config), shell=True, 
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+        resp = subprocess.run(" ".join(self.config), shell=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             encoding="utf-8")
         print(resp.stdout)
         if resp.stderr:
             print(resp.stderr)
-    
+
     def _call_gnina(self):
         ligands_basename = [get_file_prefix(filename) for filename in self.ligands]
         docking_poses = [os.path.join(self.output_dir, "%s_out.sdf"%basename) for basename in ligands_basename]
-        
+
         for pose in docking_poses:
             result = subprocess.run("gnina -r %s -l %s --score_only"%(self.receptor, pose), shell=True, stdout=subprocess.PIPE, text=True)
             print(result.stdout)
             self._add_record(pose, result.stdout)
-    
+
     def _add_record(self, sdf, stdout):
         print("Recording CNNscores into SDF Files...")
         suppl = Chem.SDMolSupplier(sdf, removeHs=False)
@@ -212,7 +212,7 @@ class UniDock():
         for idx, mol in enumerate(mols):
             mol.SetDoubleProp('CNNscores', float(CNNscores[idx]))
             mol.SetDoubleProp('CNNaffinitys', float(CNNaffinitys[idx]))
-        
+
         writer = Chem.SDWriter(sdf)
         for mol in mols:
             writer.write(mol)
@@ -237,11 +237,11 @@ class UniDock():
                 else:
                     raise ValueError(f"Unhandled value type for argument {arg}: {type(value)}")
         self.command_line = self.command_line.strip()
-    
+
     def _check_args_and_return(self, args):
         assigned_properties = [prop for prop in self.ligand_input_method if getattr(args, prop, None) is not None]
         #print([getattr(args, prop)for prop in self.ligand_input_method if getattr(args, prop, None) is not None])
-        
+
         if len(assigned_properties) != 1:
             raise ValueError("please input ligand file(s) properly.")
         return assigned_properties[0]
@@ -255,7 +255,7 @@ class UniDock():
         self.config.append(self.command_line)
 
 def get_file_prefix(file_path):
-    file_name = os.path.basename(file_path)  
+    file_name = os.path.basename(file_path)
     file_prefix, _ = os.path.splitext(file_name)
     return file_prefix
 
@@ -305,6 +305,7 @@ def main():
     parser.add_argument("--max_step", type=int, default=0, help="maximum number of steps in each MC run (if zero, which is the default, the number of MC steps is based on heuristics)")
     parser.add_argument("--refine_step", type=int, default=5, help="number of steps in refinement, default=5")
     parser.add_argument("--max_gpu_memory", type=int, default=0, help="maximum gpu memory to use (default=0, use all available GPU memory to obtain maximum batch size)")
+    parser.add_argument("--max_batch_size", type=int, default=0, help="maximum batch size to use (default=0, does not specify batch size)")
     parser.add_argument("--search_mode", type=str, default="balance", help="search mode of vina (fast, balance, detail), using recommended settings of exhaustiveness and search steps; the higher the computational complexity, the higher the accuracy, but the larger the computational cost")
 
     args = parser.parse_args()
@@ -335,6 +336,6 @@ def main():
         ##############################################
 
         unidock.dock()
-        
+
 if __name__ == "__main__":
     main()
